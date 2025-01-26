@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Canvas Particle Shader</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { width: 100vw; height: 100vh; }
+    </style>
+</head>
+<body>
+    <canvas id="shaderCanvas"></canvas>
+    <script>
+        class ParticleShader {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.width = canvas.width = window.innerWidth;
+                this.height = canvas.height = window.innerHeight;
+                this.particles = [];
+                this.time = 0;
+                this.init();
+            }
+
+            init() {
+                const particleCount = 200;
+                for (let i = 0; i < particleCount; i++) {
+                    this.particles.push({
+                        x: Math.random() * this.width,
+                        y: Math.random() * this.height,
+                        radius: Math.random() * 3 + 1,
+                        speed: Math.random() * 2 + 0.5,
+                        angle: Math.random() * Math.PI * 2
+                    });
+                }
+            }
+
+            update() {
+                this.time += 0.05;
+                this.ctx.fillStyle = `rgba(0,0,0,0.05)`;
+                this.ctx.fillRect(0, 0, this.width, this.height);
+
+                this.particles.forEach(p => {
+                    // Swirling motion with sine and cosine
+                    p.x += Math.cos(p.angle + this.time) * p.speed;
+                    p.y += Math.sin(p.angle + this.time) * p.speed;
+
+                    // Wrap around screen
+                    p.x = (p.x + this.width) % this.width;
+                    p.y = (p.y + this.height) % this.height;
+
+                    // Color based on position and time
+                    const hue = Math.sin(p.x * 0.01 + this.time) * 360;
+                    this.ctx.beginPath();
+                    this.ctx.fillStyle = `hsl(${hue}, 50%, 50%)`;
+                    this.ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    this.ctx.fill();
+                });
+            }
+
+            animate() {
+                this.update();
+                requestAnimationFrame(() => this.animate());
+            }
+        }
+
+        const canvas = document.getElementById('shaderCanvas');
+        const shader = new ParticleShader(canvas);
+        shader.animate();
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            shader.width = canvas.width;
+            shader.height = canvas.height;
+        });
+    </script>
+</body>
+</html>

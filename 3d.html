@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glossy Shader Effect</title>
+    <style>
+        body { 
+            margin: 0;
+            overflow: hidden;
+            background: #050505;
+        }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x050505);
+        document.body.appendChild(renderer.domElement);
+
+        // Shader code
+        const vertexShader = `
+            varying vec2 vUv;
+            varying vec3 vPosition;
+            varying vec3 vNormal;
+
+            void main() {
+                vUv = uv;
+                vPosition = position;
+                vNormal = normalize(normalMatrix * normal);
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `;
+
+        const fragmentShader = `
+            uniform vec2 uMouse;
+            uniform vec2 uResolution;
+            uniform float uTime;
+
+            varying vec2 vUv;
+            varying vec3 vPosition;
+            varying vec3 vNormal;
+
+            void main() {
+                vec2 normalizedMouse = uMouse / uResolution;
+                
+                // Calculate light direction based on mouse position
+                vec3 lightPos = vec3(normalizedMouse * 2.0 - 1.0, 1.0);
+                vec3 lightDir = normalize(lightPos - vPosition);
+                
+                // Basic lighting calculation
+                float diffuse = max(dot(vNormal, lightDir), 0.0);
+                
+                // Add specular highlight
+                vec3 viewDir = normalize(vec3(0.0, 0.0, 1.0) - vPosition);
+                vec3 reflectDir = reflect(-lightDir, vNormal);
+                float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
+                
+                // Combine lighting components with stronger values
+                vec3 color = vec3(0.4, 0.6, 0.8);  // Brighter base color
+                vec3 ambient = color * 0.2;         // Stronger ambient
+                vec3 diffuseColor = color * diffuse * 0.7;  // Stronger diffuse
+                vec3 specularColor = vec3(1.0) * spec;      // Full specular
+                
+                gl_FragColor = vec4(ambient + diffuseColor + specularColor, 1.0);
+            }
+        `;
+
+        // Create rectangle
+        const geometry = new THREE.PlaneGeometry(2, 1.2, 32, 32);  // Added more segments
+        const material = new THREE.ShaderMaterial({
+            vertexShader,
+            fragmentShader,
+            uniforms: {
+                uMouse: { value: new THREE.Vector2(window.innerWidth/2, window.innerHeight/2) },
+                uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+                uTime: { value: 0 }
+            }
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
+        camera.position.z = 2;
+
+        // Mouse move handler
+        function onMouseMove(event) {
+            material.uniforms.uMouse.value.x = event.clientX;
+            material.uniforms.uMouse.value.y = window.innerHeight - event.clientY;
+        }
+
+        // Window resize handler
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            material.uniforms.uResolution.value.set(window.innerWidth, window.innerHeight);
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            material.uniforms.uTime.value += 0.01;
+            renderer.render(scene, camera);
+        }
+
+        // Event listeners
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('resize', onResize);
+        animate();
+
+        // Initialize mouse position
+        onMouseMove({ clientX: window.innerWidth/2, clientY: window.innerHeight/2 });
+    </script>
+</body>
+</html>

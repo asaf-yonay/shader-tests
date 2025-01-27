@@ -53,7 +53,7 @@
                 // Convert mouse position to world space coordinates
                 vec3 lightPos = vec3(
                     (normalizedMouse.x * 2.0 - 1.0) * 10.0,
-                    (normalizedMouse.y * 2.0 - 1.0) * 10.0,
+                    -(normalizedMouse.y * 2.0 - 1.0) * 10.0,  // Inverted Y coordinate
                     5.0
                 );
                 
@@ -85,7 +85,7 @@
         };
 
         const dimensions = calculateVisibleDimensions();
-        const geometry = new THREE.PlaneGeometry(dimensions.width, dimensions.height, 32, 32);
+        // Remove the background plane setup and just keep the material for the text
         const material = new THREE.ShaderMaterial({
             vertexShader,
             fragmentShader,
@@ -96,13 +96,10 @@
             }
         });
 
-        const mesh = new THREE.Mesh(geometry, material);
-        scene.add(mesh);
-
         // Add 3D text
         const loader = new THREE.FontLoader();
         loader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', function (font) {
-            const textGeometry = new THREE.TextGeometry('Hello', {
+            const textGeometry = new THREE.TextGeometry('Center', {
                 font: font,
                 size: 1.2,
                 height: 0.2,
@@ -115,21 +112,21 @@
             });
 
             textGeometry.computeBoundingBox();
-            const centerOffset = new THREE.Vector3();
-            centerOffset.x = -(textGeometry.boundingBox.max.x - textGeometry.boundingBox.min.x) / 2;
-            centerOffset.y = -(textGeometry.boundingBox.max.y - textGeometry.boundingBox.min.y) / 2;
+            textGeometry.center(); // Center the text properly
 
             const textMesh = new THREE.Mesh(textGeometry, material);
-            textMesh.position.copy(centerOffset);
             scene.add(textMesh);
         });
 
-        camera.position.z = 5;  // Updated camera position
+        camera.position.z = 5;
 
         // Mouse move handler
         function onMouseMove(event) {
-            material.uniforms.uMouse.value.x = event.clientX;
-            material.uniforms.uMouse.value.y = window.innerHeight - event.clientY;
+            // Adjust mouse coordinates to be centered around the text
+            const x = (event.clientX - window.innerWidth / 2) / (window.innerWidth / 2);
+            const y = (event.clientY - window.innerHeight / 2) / (window.innerHeight / 2);
+            material.uniforms.uMouse.value.x = (x + 1) * 0.5 * window.innerWidth;
+            material.uniforms.uMouse.value.y = (y + 1) * 0.5 * window.innerHeight;
         }
 
         // Window resize handler
@@ -138,11 +135,6 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
             material.uniforms.uResolution.value.set(window.innerWidth, window.innerHeight);
-            
-            // Update background plane size
-            const dimensions = calculateVisibleDimensions();
-            mesh.geometry.dispose();
-            mesh.geometry = new THREE.PlaneGeometry(dimensions.width, dimensions.height, 32, 32);
         }
 
         // Animation loop

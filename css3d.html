@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSS3D Example</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #87CEEB;
+        }
+        .panel {
+            width: 200px;
+            height: 200px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS3DRenderer.js"></script>
+</head>
+<body>
+    <script>
+        window.onload = function() {
+            // Scene setup
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.CSS3DRenderer();
+            
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // Create HTML element
+            const element = document.createElement('div');
+            element.className = 'panel';
+            element.innerHTML = `
+                <h2>CSS3D Panel</h2>
+                <p>This is regular HTML content rendered in 3D space!</p>
+                <button onclick="alert('Clicks work too!')">Click me</button>
+            `;
+
+            // Create CSS3D Object
+            const object = new THREE.CSS3DObject(element);
+            scene.add(object);
+
+            // Position camera
+            camera.position.z = 500;
+
+            // Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+                
+                // Rotate the panel
+                object.rotation.x += 0.0025;
+                object.rotation.y += 0.0025;
+
+                renderer.render(scene, camera);
+            }
+
+            // Window resize handler
+            function onResize() {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            // Event listeners
+            window.addEventListener('resize', onResize);
+
+            // Initialize
+            animate();
+        };
+    </script>
+</body>
+</html>

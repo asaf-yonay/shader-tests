@@ -29,22 +29,30 @@
             const segmentSize = 1;
 
             // Function to slice image into fragments
-            function sliceImage(image, row, col) {
+            function sliceImage(image, row, col, isBackFace) {
                 const canvas = document.createElement('canvas');
-                const size = 800 / gridSize; // Assuming 800x800 images
+                const size = 800 / gridSize;
                 canvas.width = size;
                 canvas.height = size;
                 const ctx = canvas.getContext('2d');
                 
-                // Draw the portion of the image we want
-                ctx.drawImage(image, 
-                    col * size, row * size, // Source position
-                    size, size, // Source size
-                    0, 0, // Destination position
-                    size, size // Destination size
-                );
+                const x = col * size;
+                const y = row * size;
                 
-                // Create texture from canvas
+                // For back face, we need to flip horizontally
+                if (isBackFace) {
+                    ctx.save();
+                    ctx.scale(-1, 1);
+                    ctx.drawImage(image, 
+                        (gridSize - 1 - col) * size, y,  // Invert the column position for back face
+                        size, size, 
+                        -size, 0, 
+                        size, size);
+                    ctx.restore();
+                } else {
+                    ctx.drawImage(image, x, y, size, size, 0, 0, size, size);
+                }
+                
                 const texture = new THREE.CanvasTexture(canvas);
                 texture.minFilter = THREE.LinearFilter;
                 return texture;
@@ -81,14 +89,17 @@
                     for (let j = 0; j < gridSize; j++) {
                         const segmentGeometry = new THREE.BoxGeometry(segmentSize, segmentSize, 0.1);
                         
+                        // Determine rotation direction
+                        const rotateRight = (i + j) % 2 === 0;
+                        
                         // Create materials with sliced textures
                         const materials = [
                             new THREE.MeshBasicMaterial({ color: 0x000000 }), // right
                             new THREE.MeshBasicMaterial({ color: 0x000000 }), // left
                             new THREE.MeshBasicMaterial({ color: 0x000000 }), // top
                             new THREE.MeshBasicMaterial({ color: 0x000000 }), // bottom
-                            new THREE.MeshBasicMaterial({ map: sliceImage(image1, i, j) }), // front
-                            new THREE.MeshBasicMaterial({ map: sliceImage(image2, i, j) })  // back
+                            new THREE.MeshBasicMaterial({ map: sliceImage(image1, i, j, false) }), // front
+                            new THREE.MeshBasicMaterial({ map: sliceImage(image2, i, j, true) })  // back
                         ];
 
                         const segment = new THREE.Mesh(segmentGeometry, materials);
@@ -99,6 +110,7 @@
 
                         segment.userData.originalPosition = segment.position.clone();
                         segment.userData.gridPosition = { x: j, y: i };
+                        segment.userData.rotateRight = rotateRight;
 
                         scene.add(segment);
                         segments.push(segment);
@@ -112,6 +124,7 @@
             let isAnimating = false;
             let startTime = null;
             const animationDuration = 1000;
+            let isFlipped = false;  // Track current state
 
             // Click handler
             document.addEventListener('click', () => {
@@ -129,19 +142,43 @@
                     const progress = Math.min(elapsed / animationDuration, 1);
 
                     segments.forEach((segment) => {
-                        const delay = (segment.userData.gridPosition.x + segment.userData.gridPosition.y) * 0.1;
+                        const { x, y } = segment.userData.gridPosition;
+                        const delay = (x + y) * 0.1;
                         const segmentProgress = Math.max(0, Math.min(1, (progress - delay) * 1.5));
                         
-                        // Full rotation
-                        segment.rotation.y = segmentProgress * Math.PI;
+                        // Determine rotation direction based on checkerboard pattern
+                        const rotateRight = ((x + y) % 2 === 0);
+                        
+                        // Calculate rotation based on current state and direction
+                        let rotation;
+                        if (isFlipped) {
+                            // Going back to initial state
+                            if (rotateRight) {
+                                rotation = Math.PI - (Math.PI * segmentProgress);  // PI to 0
+                            } else {
+                                rotation = -Math.PI + (Math.PI * segmentProgress); // -PI to 0
+                            }
+                        } else {
+                            // Going to flipped state
+                            if (rotateRight) {
+                                rotation = Math.PI * segmentProgress;  // 0 to PI
+                            } else {
+                                rotation = -Math.PI * segmentProgress; // 0 to -PI
+                            }
+                        }
+                        
+                        segment.rotation.y = rotation;
                     });
 
                     if (progress >= 1) {
                         isAnimating = false;
-                        // Reset rotations to exact final position
+                        // Reset rotations to exact final positions
                         segments.forEach(segment => {
-                            segment.rotation.y = Math.PI;
+                            const rotateRight = ((segment.userData.gridPosition.x + 
+                                                segment.userData.gridPosition.y) % 2 === 0);
+                            segment.rotation.y = isFlipped ? 0 : (rotateRight ? Math.PI : -Math.PI);
                         });
+                        isFlipped = !isFlipped;  // Toggle the state
                     }
                 }
 
